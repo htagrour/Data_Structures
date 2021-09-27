@@ -3,6 +3,7 @@
 #include <memory>
 #include <iostream>
 
+#define COUNT 5
 template <typename v1>
 struct vect3
 {
@@ -36,10 +37,9 @@ template <typename T, typename Comp = std::less<T> , typename Alloc = std::alloc
 class bbst
 {
     typedef T value_type;
-    typedef Node<value_type> node;
-    typedef node* pointer;
+    typedef Node<value_type>* pointer;
     typedef Comp comp_value;
-    typedef typename Alloc::template rebind<node>::other node_alloc;
+    typedef typename Alloc::template rebind<Node<value_type> >::other node_alloc;
 
     public:
         
@@ -59,21 +59,86 @@ class bbst
             if (_size)
             {
                 pointer newNode = insertToLeaf(val);
-                // if (newNode)
-                //  fixViolation(newNode);
+                if (newNode)
+                    fixViolation(newNode);
             }
             else
                 insertToHead(val);
         }
+
+        void PrintTree() { print2DUtil(_head, 0);}
         bool find(const value_type& val) { return findHelper(_head, val).isExist;};
 
     private:
-
-        void fixViolation(pointer node)
+        void fixViolation(pointer &node)
         {
+            pointer parent;
+            pointer grandParent;
+
             if (node == _head || node->isBlack || node->_parent->isBlack)
+            {
+                _head->isBlack = true;
                 return;
-            _head
+            }
+
+            parent = node->_parent;
+            grandParent = parent->_parent;
+            if (parent == grandParent->_left)
+                LeftChild(node, parent, grandParent);
+            else
+                RightChild(node, parent, grandParent);
+            fixViolation(node);
+        }
+
+        void LeftChild(pointer &node, pointer parent, pointer gParent)
+        {
+            pointer uncle = gParent->_right;
+
+            //color correction:
+            if (uncle && !uncle->isBlack)
+                fixColor(node, parent, gParent, uncle);
+            else
+            {
+                //Left Right Rotation
+                if (node == parent->_right)
+                {
+                    rotateLeft(parent);
+                    node  = parent;
+                    parent  = node->_parent;
+                }
+                rotateRight(gParent);
+                std::swap(parent->isBlack, gParent->isBlack);
+                node = parent;
+            }
+
+        }
+
+        void RightChild(pointer &node, pointer parent, pointer gParent)
+        {
+            pointer uncle = gParent->_left;
+
+            if (uncle && !uncle->isBlack)
+                fixColor(node, parent, gParent,uncle);
+            else
+            {
+                if (node == parent->_left)
+                {
+                    rotateRight(parent);
+                    node = parent;
+                    parent = node->_parent;
+                }
+                rotateLeft(gParent);
+                std::swap(parent->isBlack, gParent->isBlack);
+                node = parent;
+            }
+        }
+
+        void fixColor(pointer &node, pointer parent, pointer gParent,pointer uncle)
+        {
+            gParent->isBlack = false;
+            parent->isBlack = true;
+            uncle->isBlack = true;
+            node = gParent;
         }
 
         void rotateRight(pointer node)
@@ -99,7 +164,7 @@ class bbst
             pointer right = node->_right;
 
             node->_right = right->_left;
-            if (!node->_right)
+            if (node->_right)
                 node->_right->_parent = node;
             right->_parent = node->_parent;
             if(!node->_parent)
@@ -181,10 +246,50 @@ class bbst
                     return vect3<pointer>(tmp, false, false);
             }
         }
+
+        void print2DUtil(pointer root, int space)
+        {
+            // Base case
+            if (root == NULL)
+                return;
+        
+            // Increase distance between levels
+            space += COUNT;
+        
+            // Process right child first
+            print2DUtil(root->_right, space);
+        
+            // Print current node after space
+            // count
+            std::cout<<std::endl;
+            for (int i = COUNT; i < space; i++)
+                std::cout<<" ";
+            std::cout<<root->_data<<"\n";
+        
+            // Process left child
+            print2DUtil(root->_left, space);
+        }
+ 
+        void traversTree(pointer node)
+        {
+            if (!node || node == _end)
+                return;
+            std::cout << node->_data << std::endl;
+            if (node->_right)
+                traversTree(node->_right);
+            else
+            {
+                if (node == node->_parent->_right)
+                    traversTree(node->_parent->_parent);
+                else
+                    traversTree(node->_parent);
+            }
+        }
+
         pointer allocate_node(const value_type& val)
         {
             pointer newNode = _alloc.allocate(1);
-            _alloc.construct(newNode, node(val));
+            _alloc.construct(newNode, Node<value_type>(val));
             return newNode;
         }
     private:
